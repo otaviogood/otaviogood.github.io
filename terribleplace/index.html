@@ -1,0 +1,674 @@
+<html>
+<head>
+<title>A Terrible Place to Raise Children</title>
+<meta charset="utf-8">
+<script type="text/javascript" src="libs/three.min.js"></script>
+<script type="text/javascript" src="game.js"></script>
+<script type="text/javascript" src="ui.js"></script>
+<script type="text/javascript" src="gameRenderer.js"></script>
+<script type="text/javascript" src="main.js"></script>
+<script id="vertexShader" type="x-shader/x-vertex">
+varying vec2 vUv;
+varying vec3 worldPos;
+void main()
+{
+    vUv = uv;
+	vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+    worldPos = position;
+	gl_Position = projectionMatrix * mvPosition;
+
+}
+</script>
+<script id="fragmentShader" type="x-shader/x-fragment">
+uniform float time;
+uniform vec2 resolution;
+
+uniform float fogDensity;
+uniform vec3 fogColor;
+
+uniform vec2 selectedFace;
+uniform vec3 gridPos;
+uniform vec2 gridDims;
+uniform vec4 gameMask;
+uniform vec3 lightVec;
+
+uniform sampler2D texture1;
+uniform sampler2D gameTexture;
+
+varying vec2 vUv;
+varying vec3 worldPos;
+// =========================================================
+vec3 saturate(vec3 a) { return clamp(a, 0.0, 1.0); }
+vec2 saturate(vec2 a) { return clamp(a, 0.0, 1.0); }
+float saturate(float a) { return clamp(a, 0.0, 1.0); }
+
+float Hash2d(vec2 uv)
+{
+    float f = uv.x + uv.y * 521.0;  // repeats after this value
+    float rand = fract(cos(f)*104729.0);
+    return rand;
+}
+
+void main( void ) {
+
+	vec2 positionUV = vec2(fract(0.5 - vUv.x), vUv.y);
+    //positionUV.x = fract(0.5 - vUv.x);
+    vec3 finalColor = vec3(1.0);
+
+	vec4 tex0 = texture2D( texture1, vec2(positionUV.x, 1.0-positionUV.y)).xyzw;
+    finalColor = pow(tex0.xyz, vec3(1.6))*1.2;  // arbitrary gamma correction
+
+    if ((positionUV.y > 0.25) && (positionUV.y < 0.75))
+    {
+        vec2 quantize = vec2(floor(positionUV.x*gridDims.x), floor((1.0-positionUV.y)*gridDims.y));
+        vec2 grid = abs(fract(positionUV*gridDims)-0.5)*2.0;
+
+        // render circles for gameTexture, with area proportional to gameTexture number
+        // and color 1 - gameMask
+	    vec4 tex1 = texture2D( gameTexture, vec2(positionUV.x, positionUV.y) ).xyzw;
+        vec4 gameMask2 = vec4(1.0, 0.0,0.0,0.0);
+        float radius = sqrt(tex1.x);     // sqrt so area is proportional to population
+        if (tex1.w != 0.0)
+        {
+            gameMask2 = vec4(0.0,0.0,1.0,0.0);  // hack to make energy yellow
+            radius = sqrt(tex1.w);
+        }
+        if (tex1.y != 0.0)
+        {
+            gameMask2 = vec4(0.0,1.0,0.0,0.0);
+            radius = sqrt(tex1.y);
+        }
+        if (length(tex1.yw) > 0.0) radius *= 0.33;
+        if (radius > 0.0) radius += 0.1;        // set minimum size
+        float circle = saturate(1.0 - length(grid) - saturate(1.0 - radius));
+        float circleSmall = pow(saturate((circle - 0.2)*6.0), 0.5);
+        circle = pow(saturate(circle*6.0), 0.5);
+        circle = saturate(circle - circleSmall);
+        finalColor = mix(finalColor, (vec3(1.0, 1.0, 1.0) - gameMask2.xyz), circle);
+
+        float highlight = 0.0;
+        if (gridPos.z == 1.0) {
+          vec2 delta = quantize - floor(gridPos.xy);
+          delta.x = (fract(delta.x / gridDims.x + 0.5) - 0.5) * gridDims.x;
+          highlight += clamp(4.0/length(delta) - 0.2, 0.0, 12.0);
+          //if (floor(gridPos2) == quantize) highlight += 10.0;
+
+          vec3 highlightColor = vec3(0.1, 0.7, 1.0)*0.25 * pow(max(grid.x, grid.y), 10.0)*pow(highlight, 1.0) + vec3(0.0,0.0,1.0)*highlight;
+          if (tex1.z < 0.5) highlightColor = vec3(0.0);//highlightColor.zxy;
+          if (length(gameMask.yw) > 0.0)
+          {
+              if (dot(gameMask.xyww, tex1.xyww) < 0.001) highlightColor = vec3(0.0);
+          }
+          finalColor += highlightColor;
+        }
+    }
+
+    float density = 0.02;//normalize(worldPos)
+    finalColor = mix(finalColor, vec3(0.4, 0.7, 0.99), density);
+
+    vec3 normal = normalize(worldPos);
+    finalColor *= vec3(1.0)*saturate(dot(normal, lightVec));
+
+    finalColor = sqrt(clamp(finalColor, 0.0, 1.0));
+    // dither?
+    //vec3 fr = fract(finalColor*255.0);
+    //if (Hash2d(vUv) < fr) finalColor = floor(finalColor*255.0)/255.0;
+    //else finalColor = ceil(finalColor*255.0)/255.0;
+
+	// output the final color with sqrt for "gamma correction"
+	gl_FragColor = vec4(finalColor,1.0);
+
+  // dithering
+  gl_FragColor.rgb += (Hash2d(gl_FragCoord.xy) * 2.0 - 1.0) / 255.0;
+}
+
+</script>
+
+<script id="worldVS" type="x-shader/x-vertex">
+
+#define NVERTS 4
+
+varying vec3 vNormal;
+varying vec3 vViewPosition;
+varying vec2 vUv;
+
+void main() {
+    vUv = uv;
+  vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+
+  vNormal = normalize( normalMatrix * normal );
+
+  vViewPosition = -mvPosition.xyz;
+
+  gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+}
+
+</script>
+
+<script id="worldFS" type="x-shader/x-fragment">
+
+uniform vec3 color;
+
+uniform vec3 iResolution;
+uniform vec4 iMouse;
+uniform float iGlobalTime;
+uniform float spiralyness;
+uniform float bulgeSize;
+uniform float squish;
+uniform float writeWaterMask;
+uniform float randomSeed;
+
+varying vec3 vNormal;       // in camera space
+varying vec3 vViewPosition;     // in camera space
+varying vec2 vUv;
+    // ==============================================================
+vec3 saturate(vec3 a) { return clamp(a, 0.0, 1.0); }
+vec2 saturate(vec2 a) { return clamp(a, 0.0, 1.0); }
+float saturate(float a) { return clamp(a, 0.0, 1.0); }
+
+float Hash(float f)
+{
+    return fract(cos(f)*7561.0);
+}
+float Hash2d(vec2 uv)
+{
+    float f = uv.x + uv.y * (521.0 + randomSeed);	// repeats after this value
+    float rand = fract(cos(f)*104729.0);
+    return rand;
+}
+vec2 Hash2(vec2 v)
+{
+    return fract(cos(v*3.333)*vec2(100003.9, 37049.7));
+}
+float Hash3d(vec3 uv)
+{
+    float f = uv.x + uv.y * 37.0 + uv.z * 521.0;
+    return fract(sin(f)*110003.9);
+}
+
+float mixS(float f0, float f1, float a)
+{
+    if (a < 0.5) return f0;
+    return f1;
+}
+
+float mixC(float f0, float f1, float a)
+{
+    return mix(f1, f0, cos(a*3.1415926) *0.5+0.5);
+}
+
+float mixP(float f0, float f1, float a)
+{
+    return mix(f0, f1, a*a*(3.0-2.0*a));
+}
+vec2 mixP2(vec2 v0, vec2 v1, float a)
+{
+    return mix(v0, v1, a*a*(3.0-2.0*a));
+}
+
+float mixSS(float f0, float f1, float a)
+{
+    return mix(f0, f1, smoothstep(0.0, 1.0, a));
+}
+
+const vec2 zeroOne = vec2(0.0, 1.0);
+float noise2dVec(vec2 uv)
+{
+    vec2 fr = fract(uv);
+    vec2 fl = floor(uv);
+    vec2 h0 = vec2(Hash2d(fl), Hash2d(fl + zeroOne));
+    vec2 h1 = vec2(Hash2d(fl + zeroOne.yx), Hash2d(fl + zeroOne.yy));
+    vec2 xMix = mixP2(h0, h1, fr.x);
+    return mixC(xMix.x, xMix.y, fr.y);
+}
+float noise2d(vec2 uv)
+{
+    vec2 fr = fract(uv);
+    vec2 fl = floor(uv);
+    float h00 = Hash2d(fl);
+    float h10 = Hash2d(fl + zeroOne.yx);
+    float h01 = Hash2d(fl + zeroOne);
+    float h11 = Hash2d(fl + zeroOne.yy);
+    return mixP(mixP(h00, h10, fr.x), mixP(h01, h11, fr.x), fr.y);
+}
+float noise(vec3 uv)
+{
+    vec3 fr = fract(uv.xyz);
+    vec3 fl = floor(uv.xyz);
+    float h000 = Hash3d(fl);
+    float h100 = Hash3d(fl + zeroOne.yxx);
+    float h010 = Hash3d(fl + zeroOne.xyx);
+    float h110 = Hash3d(fl + zeroOne.yyx);
+    float h001 = Hash3d(fl + zeroOne.xxy);
+    float h101 = Hash3d(fl + zeroOne.yxy);
+    float h011 = Hash3d(fl + zeroOne.xyy);
+    float h111 = Hash3d(fl + zeroOne.yyy);
+    return mixP(
+        mixP(mixP(h000, h100, fr.x),
+             mixP(h010, h110, fr.x), fr.y),
+        mixP(mixP(h001, h101, fr.x),
+             mixP(h011, h111, fr.x), fr.y)
+        , fr.z);
+}
+
+
+#define OCTAVES 9
+float OctaveNoise(vec2 uv)
+{
+    float total = 0.0;
+    vec2 uv2 = uv;
+    float freq = 1.0;
+    for (int i = 0; i < OCTAVES; i++)
+    {
+        total += noise2d(uv2 * freq) / freq;
+        freq *= 2.0;
+    }
+    return total * 3.5 / float(OCTAVES);
+}
+
+float SharpNoise(vec2 uv)
+{
+    float total = 0.0;
+    vec2 uv2 = uv;
+    float freq = 1.0;
+    for (int i = 0; i < OCTAVES; i++)
+    {
+        total += noise2d(uv2 * freq);
+        freq *= 2.0;
+    }
+    return total / float(OCTAVES);
+}
+
+const float nudge = 0.71;	// size of perpendicular vector
+float normalizer = 1.0 / sqrt(1.0 + nudge*nudge);	// pythagorean theorem on that perpendicular to maintain scale
+// Total hack of the spiral noise function to get a rust look
+float RustNoise3D(vec3 p)
+{
+    float n = 0.0;
+    float iter = 1.0;
+    float pn = noise(p*0.125);
+    pn += noise(p*0.25)*0.5;
+    pn += noise(p*0.5)*0.25;
+    pn += noise(p*1.0)*0.125;
+    for (int i = 0; i < 7; i++)
+    {
+        //n += (sin(p.y*iter) + cos(p.x*iter)) / iter;
+        float wave = saturate(cos(p.y*0.25 + pn) - 0.998);
+       // wave *= noise(p * 0.125)*1016.0;
+        n += wave;
+        p.xy += vec2(p.y, -p.x) * nudge;
+        p.xy *= normalizer;
+        p.xz += vec2(p.z, -p.x) * nudge;
+        p.xz *= normalizer;
+        iter *= 1.4733;
+    }
+    return n*500.0;
+}
+
+void main(void)
+{
+
+  // ---------------- First, set up the camera rays for ray marching ----------------
+  vec2 uv =vUv;// gl_FragCoord.xy/iResolution.xy * 2.0 - 1.0;
+//  vec3 finalColor = vec3(0.0);
+//    finalColor += noise2d(uv);
+//    finalColor = vec3(uv,0.0);
+
+
+
+
+        uv -=0.5;
+    uv *= vec2(32.0, 16.0);
+    uv *= (iMouse.y + 20.0) / 256.0;
+    uv +=0.5;
+
+    float mask = 0.0;
+	vec3 finalColor = vec3(0.0);
+    //uv += iGlobalTime;
+    //float col = Hash(uv.x + uv.y * 37.0);
+    // vec2 preWarp = vec2(OctaveNoise(uv+1007.0), OctaveNoise(uv + 1537.0)) * sin(iGlobalTime);
+    //vec2 warp = vec2(OctaveNoise(uv), OctaveNoise(uv + 137.0))*2.0;// + vec2(OctaveNoise(uv) * 3.0, OctaveNoise(uv + 1037.0) * 3.0));
+    float warp = OctaveNoise(uv)*2.0;// + vec2(OctaveNoise(uv) * 3.0, OctaveNoise(uv + 1037.0) * 3.0));
+    float col = OctaveNoise(uv + warp * 2.0 + 349.0);
+    col = saturate((col - 0.1) * 1.6);	// renormalize
+
+    float grass = SharpNoise(uv * 16.0 + warp * 4.0) * 2.9 - 1.0;
+    vec3 grassCol = mix( vec3(55., 66., 29.), vec3(11., 23., 3.)*1.2, pow(max(0.0,grass),0.75)) / 256.0;
+
+    float rivers = RustNoise3D(vec3((uv + warp * 0.5) * 256.0, 0.0));
+    float hard = pow(saturate(OctaveNoise(uv * 8.0 + 57. + warp * 8.0) - 0.5), 0.2);
+
+    finalColor += grassCol;
+    vec3 desertColor = vec3(204., 163., 116.)/256.0;
+    vec3 desertColorDry = vec3(198., 148., 99.)/256.0;
+    float bigFade = noise2d(uv * 4.0) * 2.0 - 0.5;
+    desertColor = mix(desertColor, desertColorDry, bigFade);
+    finalColor = mix(finalColor, saturate(vec3(62., 45., 26.)/86.0 * grass*0.7), hard);
+    finalColor = mix(finalColor, vec3(26., 39., 13.)/256.0, rivers * 1.0);
+    finalColor = mix(finalColor, desertColor, saturate((col - 0.58) * 3.7));
+    float snowLevel = saturate((col - 0.75)*16.0);
+    float snowNoise = pow(saturate(OctaveNoise(uv * 32.0 + warp * 4.0) - 0.39)*1.0, 0.4);
+    float snowCaps = pow(abs(vUv.y-0.5)*2.0, 2.0) * noise2d(uv*8.0);
+    finalColor = mix(finalColor, vec3(1.0), saturate(snowLevel-snowNoise));
+    finalColor = mix(finalColor, vec3(1.0), saturate(snowCaps*6.0*pow(abs(col),3.0)));
+
+    float pacificOcean = saturate(pow(1.0 - abs(vUv.x-0.5)*2.0, 0.07));// + 16.0*OctaveNoise(uv*8.0 + warp * 4.0)-16.0);
+    col *= pacificOcean;
+    if (col < 0.5)
+    {
+        finalColor = vec3(2., 5., 20.)/256.0;
+        mask = 0.0;
+    }
+    else
+    {
+        mask = 1.0;
+    }
+
+    float shore = exp(-pow(abs((col-0.5)*50.0), 2.0));
+    vec3 reefColor = mix(vec3(0.1, 0.7, 0.5)*0.1, vec3(0.1, 0.7, 0.7)*0.95, saturate(bigFade-0.975));
+    finalColor = mix(finalColor, reefColor, pow(abs(shore*bigFade),0.8));
+
+    float snowCaps2 = saturate(pow(abs(vUv.y-0.5)*16.0, 1.5) + 16.0*OctaveNoise(uv*8.0 + warp * 4.0)-16.0);
+    finalColor = mix(finalColor, vec3(1.0),snowCaps2);
+
+    float a = atan(uv.x,uv.y);
+
+    float spiral = length(uv);
+    float vortexBig = exp(-spiral*1.0-1.95);
+    vec2 offset = vec2(-uv.y, uv.x);
+    offset = 0.0*normalize(offset) * pow(spiral, 0.99)*(0.0+vortexBig)*8.0;//*sin(iGlobalTime);
+
+    float cloud = OctaveNoise(offset + uv*0.125 + warp * 0.125 + 903.2 - iGlobalTime*0.0625*0.25);
+    cloud = pow(saturate(cloud - 0.36), 0.5)*3.0;
+    //finalColor = mix(finalColor, vec3(1.0), cloud);
+    finalColor = saturate(finalColor);
+
+    if (writeWaterMask == 1.0)
+    {
+        // population
+        float pop = noise2d(uv*16.0 + warp * 2.0);
+        pop += noise2d(uv*32.0 + warp * 2.0);
+        pop += noise2d(uv*64.0 + warp * 2.0)*0.8;
+        pop += noise2d(uv*128.0 + warp * 2.0)*0.6;
+        pop *= 0.25*bigFade;
+        pop -= 0.4;
+        pop *= 2.0;
+        float energy = saturate(-pop- 0.8);
+        pop = saturate(pop);
+        //pop = pow(pop, 10.0)*9.0;
+
+        // metals use "hard"
+
+        vec4 rgba = vec4(pop * mask, saturate(hard)*mask, 1.0-mask, saturate(energy)*mask);
+        // Winner takes all so there can only be 1 resource per tile
+        float winner = max(max(rgba.x, rgba.y), rgba.w);
+        if (winner == rgba.x)
+        {
+            rgba.yw *= 0.0;
+        }
+        else if (winner == rgba.y)
+        {
+                rgba.xw *= 0.0;
+        }
+        else
+        {
+                rgba.xy *= 0.0;
+        }
+        if ((vUv.y <= 0.25) || (vUv.y >= 0.75)) rgba *= 0.0;
+
+        gl_FragColor = clamp(rgba, 0.0, 1.0);
+    }
+    else
+    {
+        gl_FragColor = vec4((clamp(finalColor*1.0, 0.0, 1.0)),1.0);
+    }
+}
+
+
+</script>
+
+
+<style>
+
+body {
+  position: fixed;
+  margin: 0;
+  overflow: hidden;
+}
+
+canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.ui {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  cursor: inherit;
+}
+
+.status {
+  position: absolute;
+  left: 20px;
+  bottom: 20px;
+  -moz-text-select: none;
+  -webkit-text-select: none;
+}
+
+.pulse {
+  -webkit-animation: pulsate 0.2s;
+  -webkit-animation-iteration-count: 1;
+}
+
+@-webkit-keyframes pulsate {
+  0% { -webkit-transform: scale(1); }
+  50% { -webkit-transform: scale(1.25); }
+  100% { -webkit-transform: scale(1); }
+}
+
+.status-label {
+  color: rgba(255, 255, 255, 0.25);
+  font: 30px sans-serif;
+  vertical-align: middle;
+}
+
+.status-value {
+  color: white;
+  font: 50px sans-serif;
+  vertical-align: middle;
+}
+
+.buttons {
+  position: absolute;
+  right: 20px;
+  top: 20px;
+  color: white;
+}
+
+.buttons.active {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.button {
+  cursor: pointer;
+  font: 20px/25px sans-serif;
+}
+
+.button.active {
+  color: white;
+}
+
+.button:hover {
+  text-decoration: underline;
+}
+
+.crosshair-x {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1;
+  display: none;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.crosshair-y {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1;
+  display: none;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.health-bar {
+  position: absolute;
+  width: 48px;
+  height: 8px;
+  margin: -5px 0 0 -25px;
+  border: 1px solid white;
+  pointer-events: none;
+}
+
+.health-bar div {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  background: red;
+}
+
+.stats {
+  position: absolute;
+  width: 128px;
+  padding: 10px 15px;
+  background: rgba(0, 0, 0, 0.9);
+  border: 1px solid white;
+  margin-left: -80px;
+  border-radius: 5px;
+  display: none;
+  color: white;
+  pointer-events: none;
+}
+
+.stats:after {
+  position: absolute;
+  left: 50%;
+  bottom: -10px;
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 10px solid white;
+  margin-left: -10px;
+  content: '';
+}
+
+.stats-name, .button-tooltip-name {
+  font: 20px/30px sans-serif;
+  text-align: center;
+}
+
+.stats-text, .button-tooltip-text {
+  font: 12px/16px sans-serif;
+}
+
+.ring {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  margin: -2px 10px -2px -2px;
+  border: 4px solid white;
+  border-radius: 99px;
+}
+
+.button-tooltip {
+  position: absolute;
+  width: 280px;
+  padding: 10px 15px;
+  background: rgba(0, 0, 0, 0.9);
+  border: 1px solid white;
+  border-radius: 5px;
+  display: none;
+  color: white;
+  margin-right: 20px;
+  margin-top: -10px;
+  pointer-events: none;
+}
+
+.button-tooltip:after {
+  position: absolute;
+  right: -10px;
+  top: 10px;
+  width: 0;
+  height: 0;
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  border-left: 10px solid white;
+  content: '';
+}
+
+.out-of {
+  display: none;
+  position: absolute;
+  width: 300px;
+  height: 100px;
+  left: 50%;
+  top: 50%;
+  margin-left: -150px;
+  margin-top: -50px;
+  color: white;
+  font: bold 30px/100px sans-serif;
+  text-align: center;
+  background: rgba(255, 0, 0, 0.7);
+  border-radius: 20px;
+}
+
+.wave-name {
+  position: absolute;
+  left: 20px;
+  top: 20px;
+  font: 20px sans-serif;
+  color: white;
+}
+
+.game-over {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  padding-top: 300px;
+  text-align: center;
+  font: bold 50px/60px sans-serif;
+  color: white;
+  display: none;
+}
+
+.intro {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: black;
+  padding-top: 300px;
+  text-align: center;
+  font: bold 50px/60px sans-serif;
+  color: white;
+  cursor: default;
+}
+
+.intro p {
+  font: bold 20px sans-serif;
+}
+
+</style>
+</head>
+<body>
+</body>
+</html>
