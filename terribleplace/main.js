@@ -11,18 +11,19 @@ document.addEventListener("DOMContentLoaded", function () {
     var mousePressed = false;
 
     function init() {
-        audioEffect01 = new Audio("sounds/effect01.wav");
-        audioEffect02 = new Audio("sounds/effect02.wav");
-        audioEffect03 = new Audio("sounds/effect03.wav");
-        audioEffect04 = new Audio("sounds/effect04.wav");
-        audioEffect05 = new Audio("sounds/effect05.wav");
-        audioEffect06 = new Audio("sounds/effect06.wav");
-        audioEffect07 = new Audio("sounds/effect07.wav");
-        audioEffect08 = new Audio("sounds/effect08.wav");
-        audioOutOfMetal = new Audio("sounds/effect01.wav");
-        audioOutOfEnergy = new Audio("sounds/OutOfEnergy1.wav");
-        audioExplosion = new Audio("sounds/explosion1.wav");
+        audioEffect01 = new Audio("sounds/effect01.mp3");
+        audioEffect02 = new Audio("sounds/effect02.mp3");
+        audioEffect03 = new Audio("sounds/effect03.mp3");
+        audioEffect04 = new Audio("sounds/effect04.mp3");
+        audioEffect05 = new Audio("sounds/effect05.mp3");
+        audioEffect06 = new Audio("sounds/effect06.mp3");
+        audioEffect07 = new Audio("sounds/effect07.mp3");
+        audioEffect08 = new Audio("sounds/effect08.mp3");
+        audioOutOfMetal = new Audio("sounds/effect01.mp3");
+        audioOutOfEnergy = new Audio("sounds/OutOfEnergy1.mp3");
+        audioExplosion = new Audio("sounds/explosion1.mp3");
         //audioOutOfEnergy.play();
+
         scene = new THREE.Scene();
         camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
         glRenderer = new THREE.WebGLRenderer(); glRenderer.setSize(window.innerWidth, window.innerHeight);
