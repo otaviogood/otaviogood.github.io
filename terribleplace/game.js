@@ -956,6 +956,6 @@ function removeFromArray(e, arr) {
 
 function restartAudio(audio) {
   audio.src = audio.src;
-  audio.currentTime = 0;
+  //audio.currentTime = 0;
   audio.play();
 }
