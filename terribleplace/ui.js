@@ -138,7 +138,7 @@ function UI(game) {
             }
           }
           audioEffect06.src = audioEffect06.src;
-          audioEffect06.currentTime = 0;
+          //audioEffect06.currentTime = 0;
           audioEffect06.play();
         }
         this.switchToMode(UI.Mode.IN_GAME);
