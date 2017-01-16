@@ -7,7 +7,7 @@
   <title>Otavio's Noise Generator Generator</title>
   <style>
       body, input, textarea {
-        font: 14px/20px sans-serif;
+        font: 16px/20px sans-serif;
         background: white;
         color: black;
       }
@@ -25,6 +25,10 @@
         line-height: 30px;
         text-align: center;
         margin-bottom: 50px;
+      }
+
+      h2 {
+        text-align: center;
       }
 
       table {
@@ -81,7 +85,7 @@
   <h1>Otavio's Noise Generator Generator</h1>
   <p>
     This is a simple utility for generating GLSL shader code that generates noise.
-    This code is licensed under the <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a> license and lives at <a href="https://otaviogood.github.io/noisegen/index.html">otaviogood.github.io/noisegen/index.html</a>.
+    This code is licensed under the <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a> license and lives at <a href="https://github.com/otaviogood/otaviogood.github.io/tree/master/noisegen">github.com/otaviogood/otaviogood.github.io/tree/master/noisegen</a>.
     Also link to shadertoy demo <a href="">Shadertoy</a>
   </p>
   <table>
@@ -903,6 +907,33 @@ void main() {
       })();
 
     </script>
+    <br/>
+    <br/>
+    <h2>Comparison to other noise algorithms</h2>
+    Pros:
+<ul type="disc">
+  <li>Deterministic - looks the same on every computer.</li>
+  <li>Fast, depending on parameters.</li>
+  <li>Smooth - no grid / texel artifacts, no texel interpolation limits, no linear interpolation artifacts.</li>
+  <li>Analytic gradients done for you.</li>
+  <li>Truely band-limited noise if you like that kind of thing.</li>
+  <li>Hand-tuneable - weights are sorted so you can delete or adjust frequency ranges.</li>
+  <li>With enough waves, the noise will not repeat.</li>
+  <li>From 1 dimensional up to 4 dimensional inputs, 1d output.</li>
+  <li>Tradeoff quality for speed.</li>
+</ul>
+Cons:
+<ul type="disc">
+  <li>Can look a bit repetitive if there aren't enough waves.</li>
+  <li>Range is not bounded [0..1], but its energy is normalized.</li>
+  <li>Doesn't repeat easily. If you want it to wrap-around, you'll have to do it yourself.</li>
+  <li>Uses up lots of constants. Not sure if this is a big deal for modern GPUs.</li>
+  <li>Floating point precision can make artifacts if all input numbers aren't in a similar range.</li>
+</ul>
+Notes:<br/>
+This noise always has a value of 0 at position (0,0). This could be changed using cosines or offsets, but it doesn't seem to be a problem.
+
+
 </body>
 
 </html>
