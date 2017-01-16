@@ -1,0 +1,663 @@
+<!-- This content is licenced under CC0: https://creativecommons.org/publicdomain/zero/1.0/ -->
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Otavio's Noise Generator Generator</title>
+    <style>
+      body, input, textarea {
+        font: 14px/20px sans-serif;
+        background: white;
+        color: black;
+      }
+
+      body {
+        margin: 50px auto;
+        padding: 0 50px;
+        max-width: 800px;
+        cursor: default;
+        -moz-user-select: -moz-none;
+        -webkit-user-select: none;
+      }
+
+      h1 {
+        line-height: 30px;
+        text-align: center;
+        margin-bottom: 50px;
+      }
+
+      table {
+        border-collapse: collapse;
+      }
+
+      th {
+        text-align: left;
+        vertical-align: top;
+        white-space: pre;
+      }
+
+      td {
+        vertical-align: top;
+      }
+
+      input[type=text] {
+        margin: -2px 0;
+        padding: 0 3px;
+        margin: 0;
+        line-height: 20px;
+        border: 1px solid #CCC;
+      }
+
+      input.invalid {
+        color: red;
+      }
+
+      input[disabled] {
+        color: rgba(0, 0, 0, 0.5);
+        -moz-user-select: -moz-none;
+        -webkit-user-select: none;
+      }
+
+      canvas {
+        display: block;
+        background: url(data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiI+PHBhdGggZD0ibTAsMGg4djE2aDhWOEgwIiBmaWxsPSIjRUVFIi8+PC9zdmc+);
+        margin: 30px 0;
+      }
+
+      textarea {
+        width: 100%;
+        height: 512px;
+        padding: 0 3px;
+        resize: vertical;
+        border: 1px solid #CCC;
+        box-sizing: border-box;
+        font-family:monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Otavio's Noise Generator Generator</h1>
+    <p>
+      This is a simple utility for generating GLSL shader code that generates noise.
+      This code is licensed under the <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a> license and lives at <a href="">PUT LINK HERE</a>.
+      Also link to shadertoy demo <a href="">Shadertoy</a>
+    </p>
+    <table>
+      <tr>
+        <th>Input dimensions: &nbsp;</th>
+        <td>
+          <label>
+            <input type="radio" name="dims" id="dims1">
+            1D &nbsp;
+          </label>
+          <label>
+            <input type="radio" name="dims" id="dims2" checked>
+            2D &nbsp;
+          </label>
+          <label>
+            <input type="radio" name="dims" id="dims3">
+            3D &nbsp;
+          </label>
+          <label>
+            <input type="radio" name="dims" id="dims4">
+            4D
+          </label>
+        </td>
+      </tr>
+      <tr>
+        <th>Random seed: &nbsp;</th>
+        <td><input type="text" id="randomSeed" value="1"></td>
+      </tr>
+      <tr>
+        <th>Number of waves / iterations (1..200ish, 64 looks good): &nbsp;</th>
+        <td><input type="text" id="iterations" value="8"></td>
+      </tr>
+      <tr>
+        <th>Frequency octaves (0..16ish, 10 looks good): &nbsp;</th>
+        <td><input type="text" id="frequencyRange" value="2"></td>
+      </tr>
+      <tr>
+        <th>Smooth out higher frequencies (1..2ish, 1.25 looks good): &nbsp;</th>
+        <td><input type="text" id="smoothness" value="1.25"></td>
+      </tr>
+    </table>
+    <p>
+      <button id="generate" disabled>Generate noise generator</button>
+    </p>
+    <canvas id="canvas"></canvas>
+    <noscript>You currently have JavaScript disabled. Please enable JavaScript to use this app.</noscript>
+
+
+    <script id="2d-vertex-shader" type="x-shader/x-vertex">
+      precision highp float;
+      attribute vec2 a_position;
+      void main() {
+        gl_Position = vec4(a_position, 0, 1);
+      }
+    </script>
+
+
+
+    <script id="1d-fragment-shader" type="x-shader/x-fragment">
+    precision mediump float;
+    uniform float iGlobalTime;
+    // DO NOT MODIFY THIS LINE. THIS WILL BE REPLACED.!
+
+    void main() {
+      vec2 uv = gl_FragCoord.xy;
+      float noise = OtavioNoiseGen(uv.x*0.04)*0.7 + 0.5;
+      vec3 finalColor = vec3(noise);
+      if (noise+0.25 > uv.y*0.01) finalColor = vec3(0.7, 0.85, 1.0);
+      gl_FragColor = vec4(finalColor, 1.0);
+    }
+    </script>
+
+    <script id="2d-fragment-shader" type="x-shader/x-fragment">
+    precision mediump float;
+    uniform float iGlobalTime;
+    uniform vec2 iMouse;
+    // DO NOT MODIFY THIS LINE. THIS WILL BE REPLACED.!
+
+    void main() {
+      vec2 uv = gl_FragCoord.xy;
+      float noise = OtavioNoiseGen(uv*0.04 + iMouse*0.01)*0.7 + 0.5;
+      vec3 finalColor = vec3(noise);
+      if (noise+0.25 > uv.y*0.01) finalColor = vec3(0.7, 0.85, 1.0);
+      gl_FragColor = vec4(finalColor, 1.0);
+    }
+    </script>
+
+    <script id="3d-fragment-shader" type="x-shader/x-fragment">
+    precision mediump float;
+    uniform float iGlobalTime;
+
+    // DO NOT MODIFY THIS LINE. THIS WILL BE REPLACED.!
+
+vec2 iResolution = vec2(800.0, 320.0);
+const float PI=3.14159265;
+
+vec3 saturate(vec3 a) { return clamp(a, 0.0, 1.0); }
+vec2 saturate(vec2 a) { return clamp(a, 0.0, 1.0); }
+float saturate(float a) { return clamp(a, 0.0, 1.0); }
+
+
+float globScale = 0.25;
+float DistanceToObject(vec3 p) {
+    float dist = OtavioNoiseGen(p.xyz*globScale)*9.0;
+    //return log2(exp2(p.y*4.0) + exp2(dist*4.0))/4.0;
+    return max(p.y, dist);
+    return p.y + dist;
+}
+vec3 Grad(vec3 p) {
+    vec3 dist = OtavioNoiseGenD(p.xyz*globScale)*2.25;
+    return vec3(0.0, 1.0, 0.0) + dist;
+}
+
+// lighting vars
+vec3 sunDir = normalize(vec3(0.53, 1.0, 2.0));
+const vec3 sunCol = vec3(250.0, 220.0, 200.0) / 205.0;
+const vec3 horizonCol = vec3(0.9, 0.72, 0.72)*0.9;
+const vec3 skyCol = vec3(0.04,0.2,0.9) * 0.7;
+vec3 TraceOneRay(vec3 camPos, vec3 rayVec, out vec3 normal, out float distAndMat, out float t) {
+    normal = vec3(0.0);
+    distAndMat = 0.0;  // Distance
+    vec3 finalColor = vec3(0.0);
+  // ----------------------------- Ray march the scene ------------------------------
+  t = 0.0;
+  const float maxDepth = 64.0; // farthest distance rays will travel
+  vec3 pos = vec3(0.0);
+    const float smallVal = 0.001;
+  // ray marching time
+    for (int i = 128; i >= 0; i--)  // This is the count of the max times the ray actually marches.
+    {
+        // Step along the ray.
+        pos = (camPos + rayVec * t);
+        // This is _the_ function that defines the "distance field".
+        // It's really what makes the scene geometry. The idea is that the
+        // distance field returns the distance to the closest object, and then
+        // we know we are safe to "march" along the ray by that much distance
+        // without hitting anything. We repeat this until we get really close
+        // and then break because we have effectively hit the object.
+        distAndMat = DistanceToObject(pos);
+
+        // move down the ray a safe amount
+        t += distAndMat * 0.8;
+        // If we are very close to the object, let's call it a hit and exit this loop.
+        if ((t > maxDepth) || (abs(distAndMat) < smallVal)) break;
+    }
+
+  // --------------------------------------------------------------------------------
+  // Now that we have done our ray marching, let's put some color on this geometry.
+  // If a ray actually hit the object, let's light it.
+    if (t <= maxDepth)
+  {
+        float dist = distAndMat;
+        // calculate the normal from the distance field. The distance field is a volume, so if you
+        // sample the current point and neighboring points, you can use the difference to get
+        // the normal.
+        vec3 smallVec = vec3(smallVal, 0, 0);
+        vec3 normalU = vec3(dist - DistanceToObject(pos - smallVec.xyy),
+                           dist - DistanceToObject(pos - smallVec.yxy),
+                           dist - DistanceToObject(pos - smallVec.yyx));
+        //normalU = OtavioNoiseGenD(vec4(pos.xyz, iGlobalTime)*globScale).xyz*2.25 + vec3(0.0, 1.0, 0.0);
+        //normalU = Grad(pos.xyz).xyz;
+        normal = normalize(normalU);
+
+        vec3 lightColor = sunCol * max(0.0, dot(sunDir, normal));
+        lightColor += skyCol * (normal.y * 0.5 + 0.5);
+        float steep = pow(saturate(normal.y*1.7-0.9), 2.0);
+        vec3 texColor = mix(vec3(0.42, 0.36, 0.16)*0.8, vec3(0.5, 0.64, 0.25), steep);
+        texColor = mix(texColor, vec3(0.85), saturate(pos.y*2.0 * steep*4.0+0.125));
+        finalColor = texColor * lightColor;
+        // fog
+    finalColor = mix(horizonCol, finalColor, exp(-t*0.015));
+
+        // visualize length of gradient of distance field to check distance field correctness
+        //finalColor = vec3(0.5) * (length(normalU) / smallVec.x);
+        //finalColor = normal * 0.5 + vec3(0.5, 0.5, 0.5);
+        //finalColor = vec3(1.0) * steep;
+        //finalColor = saturate(vec3(OtavioNoiseGenD(vec4(pos.xyz, iGlobalTime)*globScale).xyz)*0.5+0.5);
+        if (pos.y > -0.01) finalColor = vec3(0.6, 0.7, 1.0);
+  }
+    else
+    {
+        const vec3 skyCol = vec3(0.04,0.2,0.9) * 0.7;
+        // Our ray trace hit nothing, so draw background.
+        finalColor = mix(horizonCol, skyCol, pow(saturate(rayVec.y), 0.65));
+    }
+    return finalColor;
+}
+
+vec3 RayTrace(in vec2 fragCoord )
+{
+  vec3 camPos, camUp, camLookat;
+  // ------------------- Set up the camera rays for ray marching --------------------
+    // Map uv to [-1.0..1.0]
+  vec2 uv = fragCoord.xy/iResolution.xy * 2.0 - 1.0;
+    uv /= 2.0;  // zoom in
+
+    // Camera up vector.
+  camUp=vec3(0,1,0);
+
+  // Camera lookat.
+  camLookat=vec3(0,0,0);
+
+    // debugging camera
+    vec2 iMouse = vec2(400.0, 120.0);
+    float mx=-iMouse.x/iResolution.x*PI*2.0;
+  float my=iMouse.y/iResolution.y*3.14*0.95 + PI/2.0;
+  camPos = vec3(cos(my)*cos(mx),sin(my),cos(my)*sin(mx))*16.0;
+
+  // Camera setup for ray tracing / marching
+  vec3 camVec=normalize(camLookat - camPos);
+  vec3 sideNorm=normalize(cross(camUp, camVec));
+  vec3 upNorm=cross(camVec, sideNorm);
+  vec3 worldFacing=(camPos + camVec);
+  vec3 worldPix = worldFacing + uv.x * sideNorm * (iResolution.x/iResolution.y) + uv.y * upNorm;
+  vec3 rayVec = normalize(worldPix - camPos);
+
+  vec3 finalColor = vec3(0.0);
+
+    vec3 normal;
+    float distAndMat;
+    float t;
+    finalColor = TraceOneRay(camPos, rayVec, normal, distAndMat, t);
+
+  // output the final color without gamma correction - will do gamma later.
+  return vec3(sqrt(clamp(finalColor, 0.0, 1.0)));
+}
+
+
+
+
+
+void mainImage( out vec4 fragColor, in vec2 fragCoord )
+{
+    // center and scale the UV coordinates
+  vec2 uv = fragCoord.xy / iResolution.xy;
+    uv -= 0.5;
+    uv.x *= iResolution.x / iResolution.y;
+    //uv *= 0.4 * (iMouse.x * 0.01 + 1.0);
+
+    //float wave = WaveNoise2d2(uv*16.0) + 0.5;
+    vec3 finalColor = vec3(0.0);
+    finalColor = RayTrace(fragCoord.xy);
+    fragColor = vec4(finalColor, 1.0);
+}
+
+
+    void main() {
+      vec2 uv = gl_FragCoord.xy;
+      vec4 col;
+      mainImage(col, uv);
+      //float noise = OtavioNoiseGen(vec3(uv, 0.0)*0.04)*0.7 + 0.5;
+      gl_FragColor = vec4(col.xyz, 1.0);
+    }
+    </script>
+
+    <script id="4d-fragment-shader" type="x-shader/x-fragment">
+    precision mediump float;
+    uniform float iGlobalTime;
+    // DO NOT MODIFY THIS LINE. THIS WILL BE REPLACED.!
+
+    void main() {
+      vec2 uv = gl_FragCoord.xy;
+      float noise = OtavioNoiseGen(vec4(uv, 0.0, 0.0)*0.04)*0.7 + 0.5;
+      gl_FragColor = vec4(noise, noise, noise, 1.0);
+    }
+    </script>
+
+
+    <script>
+(function() {
+  mouseX = 0, mouseY = 0, lastMouseX = 0, lastMouseY = 0;
+  mouseButton = false;
+
+  function initWebGL() {
+    var options = {antialias: false, alpha: false, depth: false, stencil: false, preserveDrawingBuffer: false};
+    //var canvas = document.createElement('canvas');
+    var canvas = document.getElementById('canvas');
+    try { var gl = canvas.getContext('experimental-webgl', options); } catch (e) {}
+    try { gl = gl || canvas.getContext('webgl', options); } catch (e) {}
+    if (!gl) {
+      document.write('Your browser doesn\'t support WebGL. Please use a modern browser.');
+      return;
+    }
+    var width = 800;
+    var height = 320;
+    var ratio = window.devicePixelRatio || 1;
+    canvas.width = Math.round(width * ratio);
+    canvas.height = Math.round(height * ratio);
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    canvas.addEventListener("mousedown", doMouseDown, false);
+
+    var buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(
+      gl.ARRAY_BUFFER, 
+      new Float32Array([
+        -1.0, -1.0, 
+         1.0, -1.0, 
+        -1.0,  1.0, 
+        -1.0,  1.0, 
+         1.0, -1.0, 
+         1.0,  1.0]), 
+      gl.STATIC_DRAW
+    );
+    return gl;
+  }
+
+  function doMouseDown(e) {
+    var rect = canvas.getBoundingClientRect();
+    // alert("x " + x  + "   y " + y);
+    e.preventDefault()
+    mouseButton = true
+    lastMouseX = mouseX = e.clientX - rect.left
+    lastMouseY = mouseY = e.clientY - rect.top
+    // dirty = true
+  }
+
+  function SetupShaders(noiseString) {
+    var shaderScript;
+    var shaderSource;
+    var vertexShader;
+    var fragmentShader;
+
+    shaderScript = document.getElementById("2d-vertex-shader");
+    shaderSource = shaderScript.text;
+    vertexShader = gl.createShader(gl.VERTEX_SHADER);
+    gl.shaderSource(vertexShader, shaderSource);
+    gl.compileShader(vertexShader);
+
+    if (genDims == 1) shaderScript = document.getElementById("1d-fragment-shader");
+    if (genDims == 2) shaderScript = document.getElementById("2d-fragment-shader");
+    if (genDims == 3) shaderScript = document.getElementById("3d-fragment-shader");
+    if (genDims == 4) shaderScript = document.getElementById("4d-fragment-shader");
+    var finalShader = shaderScript.text;
+    finalShader = finalShader.split("// DO NOT MODIFY THIS LINE. THIS WILL BE REPLACED.!").join(noiseString);
+    shaderSource   = finalShader;
+    fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+    gl.shaderSource(fragmentShader, shaderSource);
+    gl.compileShader(fragmentShader);
+    if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
+      console.log(shaderSource);
+      var compilationLog = gl.getShaderInfoLog(fragmentShader);
+      console.log('Shader compiler log: ' + compilationLog);
+      throw new Error(gl.getShaderInfoLog(fragmentShader));
+    }
+    program = gl.createProgram();
+    gl.attachShader(program, vertexShader);
+    gl.attachShader(program, fragmentShader);
+    gl.linkProgram(program);  
+    gl.useProgram(program);
+    startTimeInMs = Date.now();
+  }
+
+  function render() {
+    window.requestAnimationFrame(render, canvas);
+    gl.clearColor(1.0, 0.0, 0.0, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    positionLocation = gl.getAttribLocation(program, "a_position");
+    gl.enableVertexAttribArray(positionLocation);
+    gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+    var timeLoc = gl.getUniformLocation(program, "iGlobalTime");
+    var timeInMs = Date.now();
+    gl.uniform1f(timeLoc, timeInMs - startTimeInMs);
+    var mouseLoc = gl.getUniformLocation(program, "iMouse");
+    gl.uniform2f(mouseLoc, mouseX, mouseY);
+
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+  }
+
+
+  var gl = initWebGL();
+
+  var buttonGenerate = document.getElementById('generate');
+  var checkboxDims1 = document.getElementById('dims1');
+  var checkboxDims2 = document.getElementById('dims2');
+  var checkboxDims3 = document.getElementById('dims3');
+  var checkboxDims4 = document.getElementById('dims4');
+  var textboxRandomSeed = document.getElementById('randomSeed');
+  var textboxIterations = document.getElementById('iterations');
+  var textboxFrequencyRange = document.getElementById('frequencyRange');
+  var textboxSmoothness = document.getElementById('smoothness');
+  var textarea = document.createElement('textarea');
+
+  // try { var context = canvas.getContext('2d'); } catch (e) {}
+  // if (!context) {
+  //   document.write('Your browser doesn\'t support the HTML5 2D canvas API. Please use a modern browser.');
+  //   return;
+  // }
+  textarea.spellcheck = false;
+  // document.body.appendChild(canvas);
+  document.body.appendChild(textarea);
+
+  function updateGenerate() {
+    buttonGenerate.disabled =
+      textboxSmoothness.className === 'invalid' ||
+      textboxFrequencyRange.className === 'invalid' ||
+      textboxIterations.className === 'invalid' ||
+      textboxRandomSeed.className === 'invalid';
+  }
+
+  function checkRandomSeed() {
+    var match = /^(\d+)$/.exec(textboxRandomSeed.value);
+    randomSeed = match ? match[1] | 0 : 0;
+    textboxRandomSeed.className = 0 < randomSeed && randomSeed <= 256*256*256*128 ? '' : 'invalid';
+    updateGenerate();
+  }
+
+  function checkIterations() {
+    var match = /^(\d+)$/.exec(textboxIterations.value);
+    iterations = match ? match[1] | 0 : 0;
+    textboxIterations.className = 0 < iterations && iterations <= 256*256 ? '' : 'invalid';
+    updateGenerate();
+  }
+
+  function checkFrequencyRange() {
+    var match = /^(\d+)$/.exec(textboxFrequencyRange.value);
+    frequencyRange = match ? match[1] | 0 : -1;
+    textboxFrequencyRange.className = 0 <= frequencyRange && frequencyRange <= 20 ? '' : 'invalid';
+    updateGenerate();
+  }
+
+  function checkSmoothness() {
+    var match = !/^\s*$/.test(textboxSmoothness.value) && !isNaN(textboxSmoothness.value);
+    smoothness = match ? parseFloat(textboxSmoothness.value) : -1;
+    textboxSmoothness.className = 0.01 <= smoothness && smoothness <= 9.0 ? '' : 'invalid';
+    updateGenerate();
+  }
+
+  function SeedRandom(state1,state2){
+      var mod1=4294967087
+      var mul1=65539
+      var mod2=4294965887
+      var mul2=65537
+      if(typeof state1!="number"){
+          state1=+new Date()
+      }
+      if(typeof state2!="number"){
+          state2=state1
+      }
+      state1=state1%(mod1-1)+1
+      state2=state2%(mod2-1)+1
+      function random(limit){
+          state1=(state1*mul1)%mod1
+          state2=(state2*mul2)%mod2
+          if(state1<limit && state2<limit && state1<mod1%limit && state2<mod2%limit){
+              return random(limit)
+          }
+          return (state1+state2)%limit
+      }
+      return random
+  }
+
+  var generator2=SeedRandom(1);
+
+  function rand() {
+    //return Math.random();
+    return fixedVariable=(generator2(256*256*128)*1.0)/ (256.0*256.0*128.0);
+  }
+
+  function generate() {
+    if (isStarting) {
+      return;
+    }
+
+    generator2=SeedRandom(randomSeed);
+    genDims = 2;
+    if (checkboxDims1.checked) genDims = 1;
+    if (checkboxDims2.checked) genDims = 2;
+    if (checkboxDims3.checked) genDims = 3;
+    if (checkboxDims4.checked) genDims = 4;
+    var iters = iterations;
+    var allRands = [];
+    for (var i = 0; i < iters; i++) {
+      allRands.push([rand(), rand(), rand(), rand(), rand()]);
+    }
+    allRands.sort(function(a, b) {
+      return a[4] - b[4]
+    })
+    var freqRange = frequencyRange
+    var smooth = smoothness;
+    var s = "";
+    var sd = "";
+    if (genDims == 1) s += "float OtavioNoiseGen(float p) {\n";
+    else s += "float OtavioNoiseGen(vec" + genDims + " p) {\n";
+    s += "    // This is a bit faster if we use 2 accumulators instead of 1.\n";
+    s += "    // Timed on Linux/Chrome/TitanX Pascal\n";
+    s += "    float wave0 = 0.0;\n";
+    s += "    float wave1 = 0.0;\n";
+
+    sd += "// Returns gradient of the noise function at position p.\n";
+    if (genDims == 1) {
+      sd += "float OtavioNoiseGenD(float p) {\n"; 
+      sd += "    float dWave0 = 0.0;\n";
+      sd += "    float dWave1 = 0.0;\n";
+      sd += "    float dir = 0.0;\n";
+    } else {
+      sd += "vec" + genDims + " OtavioNoiseGenD(vec" + genDims + " p) {\n";
+      sd += "    vec" + genDims + " dWave0 = vec" + genDims + "(0.0);\n";
+      sd += "    vec" + genDims + " dWave1 = vec" + genDims + "(0.0);\n";
+      sd += "    vec" + genDims + " dir = vec" + genDims + "(0.0);\n";
+    }
+
+    var normalizer = 1.0 / Math.sqrt(1.0*iters);
+    for (var i = 0; i < iters; i++) {
+      var dirX = allRands[i][0] * 2.0 - 1.0;
+      var dirY = allRands[i][1] * 2.0 - 1.0;
+      var dirZ = allRands[i][2] * 2.0 - 1.0;
+      var dirW = allRands[i][3] * 2.0 - 1.0;
+      var freq = allRands[i][4];
+      freq *= freqRange;
+      freq = Math.pow(2.0, freq);
+      var invFreq = 1.0 / Math.pow(freq, smooth);
+      invFreq *= normalizer;
+      freq += 1.0;
+      var normDen;
+      if (genDims == 1) normDen = Math.sqrt(dirX * dirX);
+      if (genDims == 2) normDen = Math.sqrt(dirX * dirX + dirY * dirY);
+      if (genDims == 3) normDen = Math.sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ);
+      if (genDims == 4) normDen = Math.sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ + dirW * dirW);
+      dirX /= normDen;
+      dirY /= normDen;
+      dirZ /= normDen;
+      dirW /= normDen;
+      dirX *= freq;
+      dirY *= freq;
+      dirZ *= freq;
+      dirW *= freq;
+      var vec;
+      if (genDims == 1) vec = dirX.toFixed(4);
+      if (genDims == 2) vec = "vec2(" + dirX.toFixed(4) + ", " + dirY.toFixed(4) + ")";
+      if (genDims == 3) vec = "vec3(" + dirX.toFixed(4) + ", " + dirY.toFixed(4) + ", " + dirZ.toFixed(4) + ")";
+      if (genDims == 4) vec = "vec4(" + dirX.toFixed(4) + ", " + dirY.toFixed(4) + ", " + dirZ.toFixed(4) + ", " + dirW.toFixed(4) + ")";
+      s += "    wave" + (i&1) + " += sin(dot(p, " + vec + ")) * " + invFreq.toFixed(10) + ";\n";
+
+      if (genDims == 1) sd += "    dir = " + vec + ";";
+      else sd += "    dir = " + vec + ";";
+      if (genDims == 1) sd += "    dWave" + (i&1) + " += dir * cos(dot(p, dir)) * " + invFreq.toFixed(10) + ";\n";
+      else sd += "    dWave" + (i&1) + " += dir * cos(dot(p, dir)) * " + invFreq.toFixed(10) + ";\n";
+    }
+    s += "    return wave0+wave1;\n";
+    sd += "    return dWave0+dWave1;\n";
+    s += "}\n\n"
+    sd += "}\n"
+
+
+    textarea.value = s + sd;
+
+    SetupShaders(s + sd);
+    render();
+
+  }
+
+  buttonGenerate.onclick = generate;
+
+  checkboxDims1.onclick = generate;
+  checkboxDims2.onclick = generate;
+  checkboxDims3.onclick = generate;
+  checkboxDims4.onclick = generate;
+
+  textboxRandomSeed.oninput = checkRandomSeed;
+  textboxIterations.oninput = checkIterations;
+  textboxFrequencyRange.oninput = checkFrequencyRange;
+  textboxSmoothness.oninput = checkSmoothness;
+
+  checkRandomSeed();
+  checkIterations();
+  checkFrequencyRange();
+  checkSmoothness();
+
+  isStarting = false;
+  generate();
+
+})();
+
+    </script>
+  </body>
+</html>
