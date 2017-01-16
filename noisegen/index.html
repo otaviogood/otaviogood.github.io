@@ -384,8 +384,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     canvas.addEventListener("mousemove", doMouseMove, false);
     canvas.addEventListener("touchstart", doTouchStart, false);
     canvas.addEventListener("touchend", doTouchEnd, false);
-    canvas.addEventListener("touchCancel", doTouchCancel, false);
-    canvas.addEventListener("touchMove", doTouchMove, false);
+    canvas.addEventListener("touchcancel", doTouchCancel, false);
+    canvas.addEventListener("touchmove", doTouchMove, false);
 
     var buffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
