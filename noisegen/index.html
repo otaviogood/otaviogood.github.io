@@ -372,6 +372,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     canvas.style.height = height + 'px';
     gl.viewport(0, 0, canvas.width, canvas.height);
     canvas.addEventListener("mousedown", doMouseDown, false);
+    canvas.addEventListener("mouseup", doMouseUp, false);
+    canvas.addEventListener("mousemove", doMouseMove, false);
 
     var buffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
@@ -391,13 +393,27 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 
   function doMouseDown(e) {
     var rect = canvas.getBoundingClientRect();
-    // alert("x " + x  + "   y " + y);
     e.preventDefault()
     mouseButton = true
     lastMouseX = mouseX = e.clientX - rect.left
     lastMouseY = mouseY = e.clientY - rect.top
-    // dirty = true
+    // alert("x " + mouseX  + "   y " + mouseY);
   }
+
+  function doMouseUp(e) {
+    var rect = canvas.getBoundingClientRect();
+    mouseButton = false
+    lastMouseX = mouseX = e.clientX - rect.left
+    lastMouseY = mouseY = e.clientY - rect.top
+  }
+  function doMouseMove(e) {
+    if (mouseButton) {
+      var rect = canvas.getBoundingClientRect();
+      mouseX = e.clientX - rect.left
+      mouseY = e.clientY - rect.top
+    }
+  }
+
 
   function SetupShaders(noiseString) {
     var shaderScript;
