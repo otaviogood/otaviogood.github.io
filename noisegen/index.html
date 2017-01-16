@@ -141,6 +141,8 @@
     <script id="1d-fragment-shader" type="x-shader/x-fragment">
     precision mediump float;
     uniform float iGlobalTime;
+    uniform vec2 iMouse;
+    uniform vec2 iResolution;
     // DO NOT MODIFY THIS LINE. THIS WILL BE REPLACED.!
 
     void main() {
@@ -156,6 +158,7 @@
     precision mediump float;
     uniform float iGlobalTime;
     uniform vec2 iMouse;
+    uniform vec2 iResolution;
     // DO NOT MODIFY THIS LINE. THIS WILL BE REPLACED.!
 
     void main() {
@@ -170,10 +173,11 @@
     <script id="3d-fragment-shader" type="x-shader/x-fragment">
     precision mediump float;
     uniform float iGlobalTime;
+    uniform vec2 iMouse;
+    uniform vec2 iResolution;
 
     // DO NOT MODIFY THIS LINE. THIS WILL BE REPLACED.!
 
-vec2 iResolution = vec2(800.0, 320.0);
 const float PI=3.14159265;
 
 vec3 saturate(vec3 a) { return clamp(a, 0.0, 1.0); }
@@ -338,6 +342,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     <script id="4d-fragment-shader" type="x-shader/x-fragment">
     precision mediump float;
     uniform float iGlobalTime;
+    uniform vec2 iMouse;
+    uniform vec2 iResolution;
     // DO NOT MODIFY THIS LINE. THIS WILL BE REPLACED.!
 
     void main() {
@@ -350,7 +356,9 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 
     <script>
 (function() {
-  mouseX = 0, mouseY = 0, lastMouseX = 0, lastMouseY = 0;
+  canvasWidth = 800;
+  canvasHeight = 320;
+  mouseX = canvasWidth / 2, mouseY = canvasHeight / 2, lastMouseX = 0, lastMouseY = 0;
   mouseButton = false;
 
   function initWebGL() {
@@ -363,8 +371,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
       document.write('Your browser doesn\'t support WebGL. Please use a modern browser.');
       return;
     }
-    var width = 800;
-    var height = 320;
+    var width = canvasWidth;
+    var height = canvasHeight;
     var ratio = window.devicePixelRatio || 1;
     canvas.width = Math.round(width * ratio);
     canvas.height = Math.round(height * ratio);
@@ -374,6 +382,10 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     canvas.addEventListener("mousedown", doMouseDown, false);
     canvas.addEventListener("mouseup", doMouseUp, false);
     canvas.addEventListener("mousemove", doMouseMove, false);
+    canvas.addEventListener("touchstart", doTouchStart, false);
+    canvas.addEventListener("touchend", doTouchEnd, false);
+    canvas.addEventListener("touchCancel", doTouchCancel, false);
+    canvas.addEventListener("touchMove", doTouchMove, false);
 
     var buffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
@@ -393,27 +405,67 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 
   function doMouseDown(e) {
     var rect = canvas.getBoundingClientRect();
-    e.preventDefault()
-    mouseButton = true
-    lastMouseX = mouseX = e.clientX - rect.left
-    lastMouseY = mouseY = e.clientY - rect.top
+    e.preventDefault();
+    mouseButton = true;
+    lastMouseX = mouseX = e.clientX - rect.left;
+    lastMouseY = mouseY = e.clientY - rect.top;
     // alert("x " + mouseX  + "   y " + mouseY);
   }
-
   function doMouseUp(e) {
     var rect = canvas.getBoundingClientRect();
-    mouseButton = false
-    lastMouseX = mouseX = e.clientX - rect.left
-    lastMouseY = mouseY = e.clientY - rect.top
+    mouseButton = false;
+    lastMouseX = mouseX = e.clientX - rect.left;
+    lastMouseY = mouseY = e.clientY - rect.top;
   }
   function doMouseMove(e) {
     if (mouseButton) {
       var rect = canvas.getBoundingClientRect();
-      mouseX = e.clientX - rect.left
-      mouseY = e.clientY - rect.top
+      mouseX = e.clientX - rect.left;
+      mouseY = e.clientY - rect.top;
     }
   }
-
+  function doTouchStart(e) {
+    e.preventDefault();
+    var touches = e.changedTouches;
+    var x = touches[0].clientX;
+    var y = touches[0].clientY;
+    var rect = canvas.getBoundingClientRect();
+    mouseButton = true;
+    lastMouseX = mouseX = x - rect.left;
+    lastMouseY = mouseY = y - rect.top;
+  }
+  function doTouchEnd(e) {
+    e.preventDefault();
+    var touches = e.changedTouches;
+    var x = touches[0].clientX;
+    var y = touches[0].clientY;
+    var rect = canvas.getBoundingClientRect();
+    mouseButton = false;
+    lastMouseX = mouseX = x - rect.left;
+    lastMouseY = mouseY = y - rect.top;
+  }
+  function doTouchCancel(e) {
+    e.preventDefault();
+    var touches = e.changedTouches;
+    var x = touches[0].clientX;
+    var y = touches[0].clientY;
+    var rect = canvas.getBoundingClientRect();
+    mouseButton = false;
+    lastMouseX = mouseX = x - rect.left;
+    lastMouseY = mouseY = y - rect.top;
+  }
+  function doTouchMove(e) {
+    e.preventDefault();
+    var touches = e.changedTouches;
+    var x = touches[0].clientX;
+    var y = touches[0].clientY;
+    var rect = canvas.getBoundingClientRect();
+    if (mouseButton) {
+      var rect = canvas.getBoundingClientRect();
+      mouseX = x - rect.left;
+      mouseY = x - rect.top;
+    }
+  }
 
   function SetupShaders(noiseString) {
     var shaderScript;
@@ -460,11 +512,10 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     gl.enableVertexAttribArray(positionLocation);
     gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
 
-    var timeLoc = gl.getUniformLocation(program, "iGlobalTime");
     var timeInMs = Date.now();
-    gl.uniform1f(timeLoc, timeInMs - startTimeInMs);
-    var mouseLoc = gl.getUniformLocation(program, "iMouse");
-    gl.uniform2f(mouseLoc, mouseX, mouseY);
+    gl.uniform1f(gl.getUniformLocation(program, "iGlobalTime"), timeInMs - startTimeInMs);
+    gl.uniform2f(gl.getUniformLocation(program, "iMouse"), mouseX, mouseY);
+    gl.uniform2f(gl.getUniformLocation(program, "iResolution"), canvasWidth, canvasHeight);
 
     gl.drawArrays(gl.TRIANGLES, 0, 6);
   }
