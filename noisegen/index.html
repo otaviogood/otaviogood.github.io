@@ -463,7 +463,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     if (mouseButton) {
       var rect = canvas.getBoundingClientRect();
       mouseX = x - rect.left;
-      mouseY = x - rect.top;
+      mouseY = y - rect.top;
     }
   }
 
