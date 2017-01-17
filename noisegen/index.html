@@ -77,6 +77,7 @@
         border: 1px solid #CCC;
         box-sizing: border-box;
         font-family:monospace;
+        font-size:14px;
       }
     </style>
 </head>
@@ -860,16 +861,16 @@ void main() {
             dirZ *= freq;
             dirW *= freq;
             var vec;
-            if (genDims == 1) vec = dirX.toFixed(4);
-            if (genDims == 2) vec = "vec2(" + dirX.toFixed(4) + ", " + dirY.toFixed(4) + ")";
-            if (genDims == 3) vec = "vec3(" + dirX.toFixed(4) + ", " + dirY.toFixed(4) + ", " + dirZ.toFixed(4) + ")";
-            if (genDims == 4) vec = "vec4(" + dirX.toFixed(4) + ", " + dirY.toFixed(4) + ", " + dirZ.toFixed(4) + ", " + dirW.toFixed(4) + ")";
-            s += "    wave" + (i & 1) + " += sin(dot(p, " + vec + ")) * " + invFreq.toFixed(10) + ";\n";
+            if (genDims == 1) vec = dirX.toFixed(3);
+            if (genDims == 2) vec = "vec2(" + dirX.toFixed(3) + ", " + dirY.toFixed(3) + ")";
+            if (genDims == 3) vec = "vec3(" + dirX.toFixed(3) + ", " + dirY.toFixed(3) + ", " + dirZ.toFixed(3) + ")";
+            if (genDims == 4) vec = "vec4(" + dirX.toFixed(3) + ", " + dirY.toFixed(3) + ", " + dirZ.toFixed(3) + ", " + dirW.toFixed(3) + ")";
+            s += "    wave" + (i & 1) + " += -cos(dot(p, " + vec + ")) * " + invFreq.toFixed(10) + ";\n";
 
             if (genDims == 1) sd += "    dir = " + vec + ";";
             else sd += "    dir = " + vec + ";";
-            if (genDims == 1) sd += "    dWave" + (i & 1) + " += dir * cos(dot(p, dir)) * " + invFreq.toFixed(10) + ";\n";
-            else sd += "    dWave" + (i & 1) + " += dir * cos(dot(p, dir)) * " + invFreq.toFixed(10) + ";\n";
+            if (genDims == 1) sd += "    dWave" + (i & 1) + " += dir * sin(dot(p, dir)) * " + invFreq.toFixed(10) + ";\n";
+            else sd += "    dWave" + (i & 1) + " += dir * sin(dot(p, dir)) * " + invFreq.toFixed(10) + ";\n";
           }
           s += "    return wave0+wave1;\n";
           sd += "    return dWave0+dWave1;\n";
