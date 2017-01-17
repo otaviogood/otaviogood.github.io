@@ -253,7 +253,7 @@
                         dist - DistanceToObject(pos - smallVec.yxy),
                         dist - DistanceToObject(pos - smallVec.yyx));
     //normalU = NoiseGenGrad(vec4(pos.xyz, iGlobalTime)*globScale).xyz*2.25 + vec3(0.0, 1.0, 0.0);
-    //normalU = Grad(pos.xyz).xyz;
+    normalU = Grad(pos.xyz).xyz;
     normal = normalize(normalU);
 
     float steep = pow(saturate(normal.y*1.7-0.9), 2.0);
@@ -272,7 +272,7 @@
     //finalColor = normal * 0.5 + vec3(0.5, 0.5, 0.5);
     //finalColor = vec3(1.0) * steep;
     //finalColor = saturate(vec3(NoiseGenGrad(vec4(pos.xyz, iGlobalTime)*globScale).xyz)*0.5+0.5);
-    //if (pos.y > -0.001) finalColor = vec3(0.6, 0.7, 1.0);
+    if (pos.y > -0.001) finalColor = vec3(0.6, 0.7, 1.0);
   }
   else
   {
