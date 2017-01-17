@@ -538,6 +538,7 @@ void main() {
               canvas.height = canvasHeight * window.devicePixelRatio;
               canvas.style.width = canvasWidth;
               canvas.style.height = canvasHeight;
+              var ctx = canvas.getContext('2d');
               ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
           }
 
