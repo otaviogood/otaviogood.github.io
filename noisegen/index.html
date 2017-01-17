@@ -529,6 +529,18 @@ void main() {
           var options = { antialias: false, alpha: false, depth: false, stencil: false, preserveDrawingBuffer: false };
           //var canvas = document.createElement('canvas');
           canvas = document.getElementById('canvas');
+
+          if (window.devicePixelRatio > 1) {
+              canvasWidth = canvas.width;
+              canvasHeight = canvas.height;
+
+              canvas.width = canvasWidth * window.devicePixelRatio;
+              canvas.height = canvasHeight * window.devicePixelRatio;
+              canvas.style.width = canvasWidth;
+              canvas.style.height = canvasHeight;
+              ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+          }
+
           try { var gl = canvas.getContext('experimental-webgl', options); } catch (e) { }
           try { gl = gl || canvas.getContext('webgl', options); } catch (e) { }
           if (!gl) {
