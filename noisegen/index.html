@@ -530,18 +530,6 @@ void main() {
           //var canvas = document.createElement('canvas');
           canvas = document.getElementById('canvas');
 
-          if (window.devicePixelRatio > 1) {
-              canvasWidth = canvas.width;
-              canvasHeight = canvas.height;
-
-              canvas.width = canvasWidth * window.devicePixelRatio;
-              canvas.height = canvasHeight * window.devicePixelRatio;
-              canvas.style.width = canvasWidth;
-              canvas.style.height = canvasHeight;
-              var ctx = canvas.getContext('2d');
-              ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-          }
-
           try { var gl = canvas.getContext('experimental-webgl', options); } catch (e) { }
           try { gl = gl || canvas.getContext('webgl', options); } catch (e) { }
           if (!gl) {
@@ -550,11 +538,14 @@ void main() {
           }
           var width = canvasWidth;
           var height = canvasHeight;
-          var ratio = window.devicePixelRatio || 1;
-          canvas.width = Math.round(width * ratio);
-          canvas.height = Math.round(height * ratio);
+          devicePixelRatio = window.devicePixelRatio || 1;
+          canvas.width = Math.round(width * devicePixelRatio);
+          canvas.height = Math.round(height * devicePixelRatio);
           canvas.style.width = width + 'px';
           canvas.style.height = height + 'px';
+          canvasWidth = canvas.width;
+          canvasHeight = canvas.height;
+
           gl.viewport(0, 0, canvas.width, canvas.height);
           canvas.addEventListener("mousedown", doMouseDown, false);
           canvas.addEventListener("mouseup", doMouseUp, false);
@@ -708,7 +699,7 @@ void main() {
 
           var timeInMs = Date.now();
           gl.uniform1f(timeLocation, (timeInMs - startTimeInMs)/1000.0);
-          gl.uniform2f(mouseLocation, mouseX, canvasHeight - mouseY);
+          gl.uniform2f(mouseLocation, mouseX * devicePixelRatio, canvasHeight - mouseY*devicePixelRatio);
           gl.uniform2f(resLocation, canvasWidth, canvasHeight);
 
           gl.drawArrays(gl.TRIANGLES, 0, 6);
@@ -878,12 +869,12 @@ void main() {
             if (genDims == 2) vec = "vec2(" + dirX.toFixed(3) + ", " + dirY.toFixed(3) + ")";
             if (genDims == 3) vec = "vec3(" + dirX.toFixed(3) + ", " + dirY.toFixed(3) + ", " + dirZ.toFixed(3) + ")";
             if (genDims == 4) vec = "vec4(" + dirX.toFixed(3) + ", " + dirY.toFixed(3) + ", " + dirZ.toFixed(3) + ", " + dirW.toFixed(3) + ")";
-            s += "    wave" + (i & 1) + " += -cos(dot(p, " + vec + ")) * " + invFreq.toFixed(10) + ";\n";
+            s += "    wave" + (i & 1) + " += sin(dot(p, " + vec + ")) * " + invFreq.toFixed(10) + ";\n";
 
             if (genDims == 1) sd += "    dir = " + vec + ";";
             else sd += "    dir = " + vec + ";";
-            if (genDims == 1) sd += "    dWave" + (i & 1) + " += dir * sin(dot(p, dir)) * " + invFreq.toFixed(10) + ";\n";
-            else sd += "    dWave" + (i & 1) + " += dir * sin(dot(p, dir)) * " + invFreq.toFixed(10) + ";\n";
+            if (genDims == 1) sd += "    dWave" + (i & 1) + " += dir * cos(dot(p, dir)) * " + invFreq.toFixed(10) + ";\n";
+            else sd += "    dWave" + (i & 1) + " += dir * cos(dot(p, dir)) * " + invFreq.toFixed(10) + ";\n";
           }
           s += "    return wave0+wave1;\n";
           sd += "    return dWave0+dWave1;\n";
