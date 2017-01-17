@@ -202,7 +202,7 @@
       // return p.y + dist;
   }
   vec3 Grad(vec3 p) {
-      vec3 dist = NoiseGenGrad(p.xyz*globScale)*2.25;
+      vec3 dist = NoiseGenGrad(p.xyz*globScale)*8.0;
       return vec3(0.0, 1.0, 0.0) + dist;
   }
 
@@ -219,7 +219,7 @@
   t = 0.0;
   const float maxDepth = 64.0; // farthest distance rays will travel
   vec3 pos = vec3(0.0);
-  const float smallVal = 0.01;
+  const float smallVal = 0.001;
   // ray marching time
   for (int i = 128; i >= 0; i--)  // This is the count of the max times the ray actually marches.
   {
@@ -253,7 +253,7 @@
                         dist - DistanceToObject(pos - smallVec.yxy),
                         dist - DistanceToObject(pos - smallVec.yyx));
     //normalU = NoiseGenGrad(vec4(pos.xyz, iGlobalTime)*globScale).xyz*2.25 + vec3(0.0, 1.0, 0.0);
-    //normalU = Grad(pos.xyz).xyz;
+    normalU = Grad(pos.xyz).xyz;
     normal = normalize(normalU);
 
     float steep = pow(saturate(normal.y*1.7-0.9), 2.0);
@@ -269,7 +269,7 @@
 
     // visualize length of gradient of distance field to check distance field correctness
     // finalColor = vec3(0.5) * (length(normalU) / smallVec.x);
-    //finalColor = normal * 0.5 + vec3(0.5, 0.5, 0.5);
+    // finalColor = normal * 0.5 + vec3(0.5, 0.5, 0.5);
     //finalColor = vec3(1.0) * steep;
     //finalColor = saturate(vec3(NoiseGenGrad(vec4(pos.xyz, iGlobalTime)*globScale).xyz)*0.5+0.5);
     if (pos.y > -0.001) finalColor = vec3(0.6, 0.7, 1.0);
@@ -371,7 +371,7 @@ void main() {
       return p.y + dist;
   }
   vec4 Grad(vec3 p) {
-      vec4 dist = NoiseGenGrad(vec4(p.xyz*globScale, iGlobalTime))*2.25;
+      vec4 dist = NoiseGenGrad(vec4(p.xyz*globScale, iGlobalTime))*8.0;
       return vec4(0.0, 1.0, 0.0, 0.0) + dist;
   }
 
@@ -422,7 +422,7 @@ void main() {
                         dist - DistanceToObject(pos - smallVec.yxy),
                         dist - DistanceToObject(pos - smallVec.yyx));
     //normalU = NoiseGenGrad(vec4(pos.xyz, iGlobalTime)*globScale).xyz*2.25 + vec3(0.0, 1.0, 0.0);
-    //normalU = Grad(pos.xyz).xyz;
+    normalU = Grad(pos.xyz).xyz;
     normal = normalize(normalU);
 
     float steep = pow(saturate(normal.y*1.7-0.9), 2.0);
