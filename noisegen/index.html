@@ -818,6 +818,8 @@ void main() {
           var freqRange = frequencyRange
           var smooth = smoothness;
           var s = "// Noise generator from https://otaviogood.github.io/noisegen/\n";
+          s += "// Params: " + genDims +"D, Seed " + randomSeed + ", Waves " + iters +
+               ", Octaves " + freqRange + ", Smooth " + smooth + "\n";
           var sd = "";
           if (genDims == 1) s += "float NoiseGen(float p) {\n";
           else s += "float NoiseGen(vec" + genDims + " p) {\n";
